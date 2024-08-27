@@ -1,43 +1,75 @@
 // pages/loggedin.js
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import { auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { Container, Typography, CircularProgress, Box } from '@mui/material';
+import { useState } from 'react';
+import { Container, TextField, Button, Box, Typography, Paper } from '@mui/material';
 
 export default function LoggedIn() {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-  const router = useRouter();
+  const [input, setInput] = useState('');
+  const [response, setResponse] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        // User is signed in
-        setUser(user);
-        setLoading(false);
-      } else {
-        // User is signed out, redirect to login page
-        router.push('/login');
-      }
-    });
+  const handleChat = async () => {
+    if (!input) return;
+    setLoading(true);
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [router]);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ input }),
+      });
 
-  if (loading) {
-    return (
-      <Container maxWidth="xs" sx={{ textAlign: 'center', mt: 8 }}>
-        <CircularProgress />
-      </Container>
-    );
-  }
+      const data = await res.json();
+      // Assuming data.message might be an object, check for it and display properly
+      setResponse(data.message.content || 'No response from AI');
+    } catch (error) {
+      console.error('Error calling Chat API:', error);
+      setResponse('Sorry, something went wrong. Please try again.');
+    }
+
+    setLoading(false);
+  };
 
   return (
-    <Container maxWidth="xs" sx={{ textAlign: 'center', mt: 8 }}>
-      <Typography variant="h4">You are logged in</Typography>
-      {user && <Typography variant="body1">Welcome, {user.email}!</Typography>}
+    <Container maxWidth="md">
+      <Box mt={8}>
+        <Typography variant="h4" gutterBottom>
+          ChatGPT Interface
+        </Typography>
+        <Paper elevation={3} style={{ padding: '16px' }}>
+          <TextField
+            label="Ask a question"
+            fullWidth
+            multiline
+            rows={4}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            variant="outlined"
+            margin="normal"
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleChat}
+            disabled={loading}
+            fullWidth
+          >
+            {loading ? 'Loading...' : 'Send'}
+          </Button>
+          {response && (
+            <Box mt={4}>
+              <Typography variant="h6">Response:</Typography>
+              <Paper elevation={2} style={{ padding: '16px', backgroundColor: '#f5f5f5' }}>
+                {/* Ensure that only strings or valid elements are rendered */}
+                <Typography>
+                  {response}
+                </Typography>
+              </Paper>
+            </Box>
+          )}
+        </Paper>
+      </Box>
     </Container>
   );
 }
